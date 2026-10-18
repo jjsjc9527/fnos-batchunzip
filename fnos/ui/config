@@ -1,0 +1,24 @@
+{
+    ".url": {
+        "batchunzip.Application": {
+            "title": "批量解压",
+            "desc": "批量解压",
+            "icon": "images/{0}.png",
+            "type": "iframe",
+            "protocol": "",
+            "url": "/cgi/ThirdParty/batchunzip/index.cgi/",
+            "allUsers": true
+        },
+        "batchunzip.Open": {
+            "title": "批量解压",
+            "desc": "用批量解压打开",
+            "icon": "images/{0}.png",
+            "type": "iframe",
+            "protocol": "",
+            "url": "/cgi/ThirdParty/batchunzip/index.cgi/",
+            "allUsers": true,
+            "fileTypes": ["zip", "rar", "7z", "001", "tar", "gz", "tgz", "bz2", "xz", "zst"],
+            "noDisplay": true
+        }
+    }
+}

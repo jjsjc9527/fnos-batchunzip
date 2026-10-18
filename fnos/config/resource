@@ -1,0 +1,17 @@
+{
+    "port-config": {
+        "protocol-file": "BatchUnzip.sc"
+    },
+    "data-share": {
+        "shares": [
+            {
+                "name": "批量解压",
+                "permission": {
+                    "rw": [
+                        "batchunzip"
+                    ]
+                }
+            }
+        ]
+    }
+}

@@ -1,0 +1,10 @@
+#!/bin/bash
+if [ "${wizard_delete_data}" = "true" ] && [ -n "${TRIM_PKGVAR}" ]; then
+    case "${TRIM_PKGVAR}" in
+        /vol*|/usr/local/apps/@appdata/*)
+            rm -f "${TRIM_PKGVAR}/settings.json" "${TRIM_PKGVAR}/done.json" "${TRIM_PKGVAR}"/app.log* \
+                  "${TRIM_PKGVAR}/accessible_paths" "${TRIM_PKGVAR}/share_paths" "${TRIM_PKGVAR}/app.pid"
+            ;;
+    esac
+fi
+exit 0

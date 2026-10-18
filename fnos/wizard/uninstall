@@ -1,0 +1,21 @@
+[
+    {
+        "stepTitle": "卸载批量解压",
+        "items": [
+            {
+                "type": "tips",
+                "helpText": "卸载不会动你已经解压出来的文件和压缩包。下面只决定是否保留本应用自己的设置（访问密码、密码本、解压记录）。"
+            },
+            {
+                "type": "radio",
+                "field": "wizard_delete_data",
+                "label": "应用设置",
+                "initValue": "false",
+                "options": [
+                    { "label": "保留设置，以后重新安装还能用", "value": "false" },
+                    { "label": "删除设置", "value": "true" }
+                ]
+            }
+        ]
+    }
+]

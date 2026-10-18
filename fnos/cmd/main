@@ -1,0 +1,68 @@
+#!/bin/bash
+# fnOS lifecycle: start / stop / status
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+APP_BIN="${TRIM_APPDEST}/bin/batch-unzip"
+DATA_DIR="${TRIM_PKGVAR}"
+PID_FILE="${DATA_DIR}/app.pid"
+LOG_FILE="${DATA_DIR}/app.log"
+PORT="${TRIM_SERVICE_PORT:-18660}"
+
+save_paths() {
+    mkdir -p "${DATA_DIR}"
+    printf '%s' "${TRIM_DATA_ACCESSIBLE_PATHS}" > "${DATA_DIR}/accessible_paths"
+    printf '%s' "${TRIM_DATA_SHARE_PATHS}" > "${DATA_DIR}/share_paths"
+}
+
+is_running() {
+    [ -f "${PID_FILE}" ] || return 1
+    local pid
+    pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+    [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null
+}
+
+case "$1" in
+start)
+    is_running && exit 0
+    if [ ! -x "${APP_BIN}" ]; then
+        echo "找不到程序文件 ${APP_BIN}，请重新安装应用" > "${TRIM_TEMP_LOGFILE}"
+        exit 1
+    fi
+    chmod 0755 "${TRIM_APPDEST}/ui/index.cgi" "${APP_BIN}" "${TRIM_APPDEST}/bin/7zz" 2>/dev/null
+    save_paths
+    # keep the log from growing forever
+    if [ -f "${LOG_FILE}" ] && [ "$(stat -c %s "${LOG_FILE}")" -gt 5242880 ]; then
+        mv -f "${LOG_FILE}" "${LOG_FILE}.1"
+    fi
+    nohup "${APP_BIN}" -port "${PORT}" -data "${DATA_DIR}" >> "${LOG_FILE}" 2>&1 &
+    echo $! > "${PID_FILE}"
+    sleep 1
+    if ! is_running; then
+        { echo "批量解压启动失败："; tail -n 5 "${LOG_FILE}"; } > "${TRIM_TEMP_LOGFILE}"
+        exit 1
+    fi
+    exit 0
+    ;;
+stop)
+    if is_running; then
+        pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+        kill -TERM "${pid}" 2>/dev/null
+        for _ in 1 2 3 4 5 6 7 8 9 10; do
+            kill -0 "${pid}" 2>/dev/null || break
+            sleep 1
+        done
+        kill -KILL "${pid}" 2>/dev/null
+    fi
+    # make sure 7-Zip children started by us are gone too
+    pkill -f "${TRIM_APPDEST}/bin/7zz" 2>/dev/null
+    rm -f "${PID_FILE}"
+    exit 0
+    ;;
+status)
+    is_running && exit 0
+    exit 3
+    ;;
+*)
+    exit 1
+    ;;
+esac

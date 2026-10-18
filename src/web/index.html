@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>批量解压</title>
+<link rel="icon" href="icon.png">
+<style>
+:root{
+  --bg:#f3f5f9; --card:#ffffff; --card2:#f8f9fc; --text:#18202c; --muted:#6a7486; --faint:#9aa3b2;
+  --line:#e4e8ef; --accent:#2f6bff; --accent-soft:#e8efff; --ok:#169a55; --ok-soft:#e5f6ec;
+  --bad:#e0484d; --bad-soft:#fdeced; --warn:#d98b00; --warn-soft:#fff4dd; --shadow:0 1px 2px rgba(20,30,50,.06),0 4px 16px rgba(20,30,50,.06);
+  --radius:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#12151b;--card:#1b1f27;--card2:#20252e;--text:#e6e9ef;--muted:#9aa3b2;--faint:#6a7384;--line:#2b313c;
+  --accent:#5b8cff;--accent-soft:#1f2a44;--ok:#3cc47c;--ok-soft:#173225;--bad:#ff6b6f;--bad-soft:#3a1f22;--warn:#f0b040;--warn-soft:#3a2f17;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.25)}
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit;color:inherit}
+a{color:var(--accent);text-decoration:none}
+.hidden{display:none!important}
+
+/* top bar */
+header{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:20px;padding:0 20px;height:56px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:16px;white-space:nowrap}
+.brand img{width:28px;height:28px;border-radius:7px}
+nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{border:0;background:none;padding:8px 14px;border-radius:8px;cursor:pointer;color:var(--muted);white-space:nowrap;position:relative}
+nav button:hover{background:var(--card2);color:var(--text)}
+nav button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.badge{display:inline-block;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:#fff;font-size:11px;line-height:18px;text-align:center;margin-left:4px;font-weight:600}
+.spacer{flex:1}
+
+main{max-width:1180px;margin:0 auto;padding:20px}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow)}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--faint)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.danger{color:var(--bad)}
+.btn.ghost{border-color:transparent;background:none}
+.btn.ghost:hover{background:var(--card2)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.sm{padding:4px 10px;font-size:13px}
+input[type=text],input[type=password],input[type=number],textarea{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 10px;outline:none;width:100%}
+input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+textarea{resize:vertical;min-height:140px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+label.chk{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+input[type=checkbox],input[type=radio]{accent-color:var(--accent);width:16px;height:16px;margin:0}
+.muted{color:var(--muted)}
+.faint{color:var(--faint)}
+.small{font-size:12px}
+h2{font-size:16px;margin:0 0 4px}
+.section-title{font-weight:600;margin-bottom:8px}
+
+/* files view */
+.files{display:grid;grid-template-columns:230px minmax(0,1fr);gap:16px;align-items:start}
+.side{padding:12px;position:sticky;top:76px}
+.side .ttl{font-size:12px;color:var(--muted);padding:4px 8px 8px}
+.root{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;cursor:pointer;overflow:hidden}
+.root span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.root:hover{background:var(--card2)}
+.root.on{background:var(--accent-soft);color:var(--accent)}
+.side .tip{font-size:12px;color:var(--muted);padding:10px 8px 2px;border-top:1px solid var(--line);margin-top:8px}
+.browser{overflow:hidden;min-width:0}
+.toolbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.crumbs{display:flex;align-items:center;flex-wrap:wrap;gap:2px;flex:1;min-width:200px}
+.crumbs button{border:0;background:none;padding:4px 6px;border-radius:6px;cursor:pointer;color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crumbs button:hover{background:var(--card2);color:var(--text)}
+.crumbs button:last-child{color:var(--text);font-weight:600}
+.crumbs .sep{color:var(--faint)}
+.pathedit{flex:1;display:flex;gap:6px;min-width:200px}
+.listhead{display:flex;align-items:center;gap:12px;padding:8px 16px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);background:var(--card2)}
+.row{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);cursor:pointer}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--card2)}
+.row.sel{background:var(--accent-soft)}
+.row .ico{width:30px;height:30px;flex:none;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;letter-spacing:.3px}
+.ico.folder{background:none}
+.ico.folder svg{width:30px;height:30px}
+.ico.zip{background:#3b82f6}.ico.rar{background:#8b5cf6}.ico.z7{background:#10a37f}.ico.tar{background:#f97316}.ico.gz{background:#64748b}
+.row .nm{flex:1;min-width:0}
+.row .nm b{font-weight:500;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .nm .sub{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .meta{font-size:12px;color:var(--muted);white-space:nowrap;text-align:right;width:150px}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:5px;margin-left:6px;vertical-align:1px;font-weight:500}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.tag.vol{background:var(--accent-soft);color:var(--accent)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.empty{padding:48px 20px;text-align:center;color:var(--muted)}
+.empty .big{font-size:36px;margin-bottom:8px}
+.notice{margin:12px;padding:10px 14px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px}
+.notice.err{background:var(--bad-soft);color:var(--bad)}
+
+/* action bar */
+.actionbar{position:sticky;bottom:16px;margin-top:16px;padding:12px 16px;z-index:10;border:1px solid var(--line)}
+.actionbar .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.opts{display:grid;grid-template-columns:110px 1fr;gap:12px 16px;padding-top:14px;margin-top:12px;border-top:1px solid var(--line);align-items:center}
+.opts .lbl{color:var(--muted)}
+.choice{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.pick{display:inline-flex;align-items:center;gap:6px;max-width:100%}
+.pick code{background:var(--card2);padding:3px 8px;border-radius:6px;font-size:12px;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle}
+
+/* jobs */
+.job{padding:0;margin-bottom:14px;overflow:hidden}
+.job .jh{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.job .jh .t{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.task{display:flex;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);align-items:flex-start}
+.task:last-child{border-bottom:0}
+.st{width:22px;height:22px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:12px;font-weight:700;margin-top:1px}
+.st.queued{background:var(--card2);color:var(--faint);border:1px dashed var(--faint)}
+.st.running{border:2px solid var(--accent-soft);border-top-color:var(--accent);animation:spin 1s linear infinite}
+.st.ok{background:var(--ok-soft);color:var(--ok)}
+.st.fail{background:var(--bad-soft);color:var(--bad)}
+.st.skip,.st.cancel{background:var(--card2);color:var(--muted)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.task .body{flex:1;min-width:0}
+.task .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.task .msg{font-size:12px;color:var(--muted);word-break:break-all}
+.task .msg.bad{color:var(--bad)}
+.bar{height:6px;background:var(--card2);border-radius:3px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .4s}
+.pct{font-size:12px;color:var(--muted);width:42px;text-align:right;flex:none}
+
+/* panels */
+.panel{padding:20px;margin-bottom:16px}
+.panel p{margin:6px 0}
+.formrow{display:grid;grid-template-columns:150px 1fr;gap:12px 16px;align-items:center;margin-top:14px}
+.formrow .lbl{color:var(--muted)}
+.dirlist{display:flex;flex-direction:column;gap:6px}
+.diritem{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--card2);border-radius:8px}
+.diritem code{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.switch{position:relative;width:42px;height:24px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;background:var(--line);border-radius:12px;cursor:pointer;transition:.2s}
+.switch span:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.switch input:checked+span{background:var(--accent)}
+.switch input:checked+span:before{transform:translateX(18px)}
+
+/* modal */
+.mask{position:fixed;inset:0;background:rgba(10,15,25,.45);z-index:50;display:grid;place-items:center;padding:16px}
+.modal{width:min(560px,100%);max-height:min(640px,90vh);display:flex;flex-direction:column;overflow:hidden}
+.modal .mh{padding:14px 18px;border-bottom:1px solid var(--line);font-weight:600;display:flex;align-items:center}
+.modal .mb{flex:1;overflow:auto}
+.modal .mf{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;align-items:center}
+.modal .cur{padding:10px 18px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);word-break:break-all;background:var(--card2)}
+
+/* login */
+.login{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:60;padding:16px}
+.login .box{width:min(380px,100%);padding:32px 28px;text-align:center}
+.login img{width:64px;height:64px;border-radius:14px;margin-bottom:12px}
+.login h1{font-size:20px;margin:0 0 4px}
+.login form{display:flex;flex-direction:column;gap:12px;margin-top:20px;text-align:left}
+.login .err{color:var(--bad);font-size:13px;min-height:20px}
+
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#1f2633;color:#fff;padding:10px 18px;border-radius:10px;z-index:70;box-shadow:var(--shadow);max-width:90vw;font-size:13px}
+.toast.err{background:var(--bad)}
+
+@media (max-width:860px){
+  header{padding:0 12px;gap:10px}
+  .brand span{display:none}
+  main{padding:12px}
+  .files{grid-template-columns:minmax(0,1fr)}
+  body{overflow-x:hidden}
+  .actionbar .top{gap:8px}
+  #startBtn{flex:1;justify-content:center}
+  .row{padding:10px 12px;gap:10px}
+  .tag{margin-left:4px}
+  .side{position:static;display:flex;gap:6px;overflow-x:auto;padding:8px}
+  .side .ttl,.side .tip{display:none}
+  .root{flex:none;background:var(--card2)}
+  .row .meta{width:auto;max-width:90px}
+  .row .meta .mt{display:none}
+  .opts,.formrow{grid-template-columns:1fr;gap:6px}
+  .opts .lbl,.formrow .lbl{margin-top:8px}
+  .listhead .meta{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="login" class="login hidden">
+  <div class="box card">
+    <img src="icon.png" alt="">
+    <h1>批量解压</h1>
+    <div class="muted small" id="loginHint">请输入访问密码</div>
+    <form id="loginForm">
+      <input type="password" id="pw1" placeholder="访问密码" autocomplete="current-password" required>
+      <input type="password" id="pw2" placeholder="再输入一次" class="hidden" autocomplete="new-password">
+      <div class="err" id="loginErr"></div>
+      <button class="btn primary" style="justify-content:center;padding:10px" id="loginBtn">登录</button>
+    </form>
+  </div>
+</div>
+
+<header>
+  <div class="brand"><img src="icon.png" alt=""><span>批量解压</span></div>
+  <nav id="nav">
+    <button data-v="files" class="on">文件</button>
+    <button data-v="jobs">任务<span class="badge hidden" id="jobBadge">0</span></button>
+    <button data-v="watch">自动解压</button>
+    <button data-v="settings">设置</button>
+  </nav>
+  <div class="spacer"></div>
+</header>
+
+<main>
+  <!-- FILES -->
+  <section id="v-files">
+    <div class="files">
+      <div class="side card" id="roots"></div>
+      <div>
+        <div class="browser card">
+          <div class="toolbar">
+            <button class="btn ghost sm" id="upBtn" title="上一级">↑ 上一级</button>
+            <div class="crumbs" id="crumbs"></div>
+            <div class="pathedit hidden" id="pathEdit">
+              <input type="text" id="pathInput" placeholder="/vol1/1000/下载">
+              <button class="btn sm primary" id="pathGo">前往</button>
+            </div>
+            <button class="btn ghost sm" id="editPathBtn" title="输入路径">✎ 路径</button>
+            <label class="chk small"><input type="checkbox" id="recursive"> 包含子文件夹</label>
+            <button class="btn ghost sm" id="refreshBtn">刷新</button>
+          </div>
+          <div class="listhead" id="listHead">
+            <input type="checkbox" id="selAll" title="全选">
+            <span style="flex:1">名称</span>
+            <span class="meta">大小 · 修改时间</span>
+          </div>
+          <div id="list"></div>
+        </div>
+
+        <div class="actionbar card hidden" id="actionBar">
+          <div class="top">
+            <div style="flex:1;min-width:150px"><b id="selCount">已选 0 个</b> <span class="muted small" id="selSize"></span></div>
+            <button class="btn ghost sm" id="toggleOpts">解压选项 ▾</button>
+            <button class="btn ghost sm" id="clearSel">取消选择</button>
+            <button class="btn primary" id="startBtn">开始解压</button>
+          </div>
+          <div class="hidden" id="optsWrap">
+            <div class="opts" id="jobOpts"></div>
+            <div class="opts" style="border-top:0;padding-top:0;margin-top:12px">
+              <div class="lbl">本次密码</div>
+              <div><input type="text" id="oncePw" placeholder="可选。多个密码用空格隔开；密码本里的密码也会自动尝试"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- JOBS -->
+  <section id="v-jobs" class="hidden">
+    <div style="display:flex;align-items:center;margin-bottom:14px;gap:10px">
+      <h2 style="flex:1">任务</h2>
+      <button class="btn sm" id="clearJobs">清除已完成</button>
+    </div>
+    <div id="jobList"></div>
+  </section>
+
+  <!-- WATCH -->
+  <section id="v-watch" class="hidden">
+    <div class="card panel">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="flex:1">
+          <h2>自动解压</h2>
+          <div class="muted small">定时检查下面的文件夹，发现新的压缩包就自动解压。适合下载文件夹。</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="wEnabled"><span></span></label>
+      </div>
+      <div class="formrow">
+        <div class="lbl">监控的文件夹</div>
+        <div>
+          <div class="dirlist" id="wDirs"></div>
+          <button class="btn sm" id="wAdd" style="margin-top:8px">＋ 添加文件夹</button>
+        </div>
+        <div class="lbl">检查间隔</div>
+        <div><input type="number" id="wInterval" min="1" style="width:90px"> 分钟</div>
+        <div class="lbl">等文件稳定</div>
+        <div><input type="number" id="wStable" min="0" style="width:90px"> 分钟没有变化才解压 <span class="faint small">（防止解到下载一半的包）</span></div>
+      </div>
+      <div class="opts" id="watchOpts" style="grid-template-columns:150px 1fr"></div>
+      <div style="display:flex;gap:8px;margin-top:20px;align-items:center;flex-wrap:wrap">
+        <button class="btn primary" id="wSave">保存</button>
+        <button class="btn" id="wRun">立即检查一次</button>
+        <span class="muted small" id="wStatus"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="v-settings" class="hidden">
+    <div class="card panel">
+      <h2>密码本</h2>
+      <div class="muted small">一行一个密码。遇到加密的压缩包时会按顺序逐个尝试。</div>
+      <textarea id="pwBook" style="margin-top:12px" placeholder="例如：&#10;123456&#10;www.example.com"></textarea>
+      <button class="btn primary" id="pwSave" style="margin-top:10px">保存密码本</button>
+    </div>
+    <div class="card panel">
+      <h2>默认解压选项</h2>
+      <div class="muted small">在“文件”页开始解压时默认使用这些选项。</div>
+      <div class="opts" id="defOpts" style="grid-template-columns:150px 1fr"></div>
+      <button class="btn primary" id="defSave" style="margin-top:16px">保存</button>
+    </div>
+    <div class="card panel">
+      <h2>解压记录</h2>
+      <div class="muted small">解压成功过的压缩包会被记住，勾选“跳过已解压过的”时不会再解一次。</div>
+      <button class="btn danger" id="clearDone" style="margin-top:12px">清空解压记录</button>
+    </div>
+    <div class="card panel">
+      <h2>访问密码</h2>
+      <div class="formrow">
+        <div class="lbl">原密码</div><div><input type="password" id="oldPw"></div>
+        <div class="lbl">新密码</div><div><input type="password" id="newPw"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn primary" id="chgPw">修改密码</button>
+        <button class="btn" id="logout">退出登录</button>
+      </div>
+    </div>
+    <div class="card panel">
+      <h2>关于</h2>
+      <p class="muted small">本应用只能访问你授权给它的文件夹。要解压其他文件夹里的压缩包，请到飞牛 <b>设置 → 应用设置 → 批量解压</b> 里添加授权（需要“读写”权限）。</p>
+      <p class="faint small" id="about"></p>
+    </div>
+  </section>
+</main>
+
+<div id="picker" class="mask hidden">
+  <div class="modal card">
+    <div class="mh"><span style="flex:1" id="pkTitle">选择文件夹</span><button class="btn ghost sm" id="pkClose">✕</button></div>
+    <div class="cur" id="pkCur"></div>
+    <div class="mb" id="pkList"></div>
+    <div class="mf"><button class="btn" id="pkCancel">取消</button><button class="btn primary" id="pkOk">选择这个文件夹</button></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const FOLDER = '<svg viewBox="0 0 32 32"><path d="M3 8a3 3 0 0 1 3-3h6.2a3 3 0 0 1 2.1.9L16.4 8H26a3 3 0 0 1 3 3v13a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" fill="#f5b83d"/><path d="M3 12h26v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" fill="#ffcc5c"/></svg>';
+const fmtSize = n => { if (!n) return '0 B'; const u=['B','KB','MB','GB','TB']; let i=0; while(n>=1024&&i<4){n/=1024;i++} return (i?n.toFixed(n<10?2:1):n)+' '+u[i]; };
+const fmtTime = t => { if(!t) return ''; const d=new Date(t*1000), p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+const basename = p => p.split('/').filter(Boolean).pop() || '/';
+const dirname = p => { const i=p.lastIndexOf('/'); return i<=0?'/':p.slice(0,i); };
+
+function toast(msg, err){ const t=document.createElement('div'); t.className='toast'+(err?' err':''); t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), err?4500:2500); }
+
+// Works both on http://nas:18660/ and behind the fnOS gateway
+// (/cgi/ThirdParty/batchunzip/index.cgi/), so every request is relative to BASE.
+const BASE = (()=>{ const p=location.pathname, i=p.indexOf('/index.cgi'); return i>=0 ? p.slice(0,i+10)+'/' : '/'; })();
+const TOKEN_KEY = 'bu_token:'+BASE;
+const getToken = () => { try { return localStorage.getItem(TOKEN_KEY)||''; } catch(e){ return ''; } };
+const setToken = t => { try { t ? localStorage.setItem(TOKEN_KEY,t) : localStorage.removeItem(TOKEN_KEY); } catch(e){} };
+async function api(path, body){
+  const headers = {}; const tok = getToken(); if (tok) headers['X-BU-Token'] = tok;
+  const opt = {headers, cache:'no-store', credentials:'same-origin'};
+  if (body!==undefined){ opt.method='POST'; headers['Content-Type']='application/json'; opt.body=JSON.stringify(body); }
+  let r;
+  try { r = await fetch(BASE + path.replace(/^\//,''), opt); }
+  catch(e){ throw new Error('连不上批量解压，请检查网络或确认应用正在运行'); }
+  let data = {}; try { data = await r.json(); } catch(e){}
+  if (data && data.token) setToken(data.token);
+  if (r.status===401){ setToken(''); showLogin(false); throw new Error(data.error||'请先登录'); }
+  if (!r.ok) throw new Error(data.error || ('请求失败 '+r.status));
+  return data;
+}
+
+/* ---------------- login ---------------- */
+let setupMode=false;
+function showLogin(setup){
+  setupMode=setup; $('#login').classList.remove('hidden');
+  $('#pw2').classList.toggle('hidden', !setup); $('#pw2').required=setup;
+  $('#loginHint').textContent = setup ? '第一次使用，请设置一个访问密码（防止局域网里其他人随意操作你的文件）' : '请输入访问密码';
+  $('#loginBtn').textContent = setup ? '设置密码并进入' : '登录';
+  $('#pw1').autocomplete = setup ? 'new-password' : 'current-password';
+  setTimeout(()=>$('#pw1').focus(),50);
+}
+$('#loginForm').onsubmit = async e => {
+  e.preventDefault(); $('#loginErr').textContent='';
+  const pw=$('#pw1').value;
+  if (setupMode && pw!==$('#pw2').value){ $('#loginErr').textContent='两次输入的密码不一样'; return; }
+  try { await api(setupMode?'/api/setup':'/api/login', {password:pw}); $('#login').classList.add('hidden'); $('#pw1').value=$('#pw2').value=''; boot(); }
+  catch(err){ $('#loginErr').textContent=err.message; }
+};
+
+/* ---------------- nav ---------------- */
+let view='files';
+function show(v){
+  view=v;
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on', b.dataset.v===v));
+  ['files','jobs','watch','settings'].forEach(x=>$('#v-'+x).classList.toggle('hidden', x!==v));
+  if (v==='jobs') pollJobs();
+  if (v==='watch' || v==='settings') loadSettings();
+}
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>show(b.dataset.v));
+
+/* ---------------- options component ---------------- */
+function optsForm(el, o, pickTitlePrefix){
+  o = Object.assign({outMode:'here', outDir:'', smart:true, after:'keep', moveTo:'', skipDone:true}, o||{});
+  const id = Math.random().toString(36).slice(2,7);
+  el.innerHTML = `
+    <div class="lbl">解压到</div>
+    <div class="choice">
+      <label class="chk"><input type="radio" name="om${id}" value="here"> 压缩包所在的文件夹</label>
+      <label class="chk"><input type="radio" name="om${id}" value="dir"> 指定文件夹</label>
+      <span class="pick" data-k="outDir"></span>
+    </div>
+    <div class="lbl">解压成功后</div>
+    <div class="choice">
+      <label class="chk"><input type="radio" name="af${id}" value="keep"> 保留压缩包</label>
+      <label class="chk"><input type="radio" name="af${id}" value="move"> 移动到</label>
+      <span class="pick" data-k="moveTo"></span>
+      <label class="chk"><input type="radio" name="af${id}" value="delete"> <span style="color:var(--bad)">删除压缩包</span></label>
+    </div>
+    <div class="lbl">其他</div>
+    <div class="choice">
+      <label class="chk"><input type="checkbox" data-k="smart"> 智能目录 <span class="faint small">（包里只有一个文件夹时不再多套一层）</span></label>
+      <label class="chk"><input type="checkbox" data-k="skipDone"> 跳过已解压过的</label>
+    </div>`;
+  const state = {...o};
+  const radios = (n,v)=>el.querySelectorAll(`input[name=${n}${id}]`).forEach(r=>{ r.checked=r.value===v; });
+  radios('om', state.outMode); radios('af', state.after);
+  el.querySelector('[data-k=smart]').checked=state.smart; el.querySelector('[data-k=skipDone]').checked=state.skipDone;
+  const renderPick = k => {
+    const span = el.querySelector(`.pick[data-k=${k}]`);
+    const active = k==='outDir' ? state.outMode==='dir' : state.after==='move';
+    span.innerHTML = active ? (state[k] ? `<code title="${esc(state[k])}">${esc(state[k])}</code>` : '') + `<button class="btn sm" type="button">${state[k]?'更改':'选择文件夹'}</button>` : '';
+    const b = span.querySelector('button');
+    if (b) b.onclick = async () => { const p = await pickFolder(k==='outDir'?'解压到哪个文件夹':'压缩包移动到哪个文件夹', state[k]); if (p){ state[k]=p; renderPick(k);} };
+  };
+  el.querySelectorAll(`input[name=om${id}]`).forEach(r=>r.onchange=()=>{ state.outMode=r.value; renderPick('outDir'); if(r.value==='dir'&&!state.outDir) el.querySelector('.pick[data-k=outDir] button').click(); });
+  el.querySelectorAll(`input[name=af${id}]`).forEach(r=>r.onchange=()=>{ state.after=r.value; renderPick('moveTo'); if(r.value==='move'&&!state.moveTo) el.querySelector('.pick[data-k=moveTo] button').click(); });
+  el.querySelector('[data-k=smart]').onchange=e=>state.smart=e.target.checked;
+  el.querySelector('[data-k=skipDone]').onchange=e=>state.skipDone=e.target.checked;
+  renderPick('outDir'); renderPick('moveTo');
+  return () => ({...state});
+}
+
+/* ---------------- folder picker ---------------- */
+let pkResolve=null, pkPath='';
+async function pkLoad(path){
+  pkPath=path; $('#pkCur').textContent = path || '授权的文件夹';
+  $('#pkOk').disabled = !path;
+  const list=$('#pkList'); list.innerHTML='<div class="empty">加载中…</div>';
+  try{
+    if (!path){
+      const rs = await api('/api/roots');
+      list.innerHTML = rs.length ? rs.map(r=>`<div class="row" data-p="${esc(r.path)}"><div class="ico folder">${FOLDER}</div><div class="nm"><b>${esc(r.name)}</b><div class="sub">${esc(r.path)}</div></div></div>`).join('') : '<div class="empty">还没有授权的文件夹</div>';
+    } else {
+      const d = await api('/api/list?path='+encodeURIComponent(path));
+      const up = `<div class="row" data-p="${esc(d.parent)}" data-up="1"><div class="ico" style="background:var(--faint)">↑</div><div class="nm"><b>上一级</b></div></div>`;
+      list.innerHTML = up + (d.dirs.length ? d.dirs.map(x=>`<div class="row" data-p="${esc(x.path)}"><div class="ico folder">${FOLDER}</div><div class="nm"><b>${esc(x.name)}</b></div></div>`).join('') : '<div class="empty small">没有子文件夹</div>');
+    }
+    list.querySelectorAll('.row').forEach(r=>r.onclick=()=>pkLoad(r.dataset.up && isRoot(pkPath) ? '' : r.dataset.p));
+  }catch(e){ list.innerHTML=`<div class="notice err">${esc(e.message)}</div>`; }
+}
+function pickFolder(title, start){
+  $('#pkTitle').textContent=title; $('#picker').classList.remove('hidden');
+  pkLoad(start||'');
+  return new Promise(res=>pkResolve=res);
+}
+function pkDone(v){ $('#picker').classList.add('hidden'); if(pkResolve){pkResolve(v); pkResolve=null;} }
+$('#pkOk').onclick=()=>pkDone(pkPath); $('#pkCancel').onclick=$('#pkClose').onclick=()=>pkDone(null);
+$('#picker').onclick=e=>{ if(e.target.id==='picker') pkDone(null); };
+
+/* ---------------- files view ---------------- */
+let roots=[], cur='', listing=null, selected=new Map(), defaults={}, getJobOpts=null;
+const isRoot = p => roots.some(r=>r.path===p);
+
+async function loadRoots(){
+  roots = await api('/api/roots');
+  const el=$('#roots');
+  el.innerHTML = '<div class="ttl">授权的文件夹</div>' + (roots.length ? roots.map(r=>`<div class="root" data-p="${esc(r.path)}" title="${esc(r.path)}">${FOLDER.replace('<svg','<svg width="18" height="18"')} <span>${esc(r.name)}</span></div>`).join('') : '<div class="muted small" style="padding:8px">暂无</div>')
+    + '<div class="tip">需要解压其他文件夹？到飞牛 <b>设置 → 应用设置 → 批量解压</b> 里授权（读写）。</div>';
+  el.querySelectorAll('.root').forEach(r=>r.onclick=()=>openDir(r.dataset.p));
+}
+
+function extIcon(name){
+  const n=name.toLowerCase();
+  if (/\.rar$/.test(n)) return ['rar','RAR'];
+  if (/\.7z(\.\d+)?$/.test(n)) return ['z7','7Z'];
+  if (/\.zip(\.\d+)?$/.test(n)) return ['zip','ZIP'];
+  if (/\.(tar|tgz|tbz2?|txz|tzst)|\.tar\./.test(n)) return ['tar','TAR'];
+  return ['gz', n.split('.').pop().slice(0,3).toUpperCase()];
+}
+
+async function openDir(path, preselect){
+  cur=path; selected.clear(); updateBar();
+  $('#roots').querySelectorAll('.root').forEach(r=>r.classList.toggle('on', path.startsWith(r.dataset.p)));
+  renderCrumbs();
+  const list=$('#list'); list.innerHTML='<div class="empty">加载中…</div>';
+  try{
+    listing = await api(`/api/list?path=${encodeURIComponent(path)}&recursive=${$('#recursive').checked?1:0}`);
+    cur = listing.path; renderCrumbs();
+    if (preselect) listing.archives.filter(a=>a.path===preselect).forEach(a=>selected.set(a.path,a));
+    renderList();
+    try{ history.replaceState(null,'','?dir='+encodeURIComponent(cur)); }catch(e){}
+  }catch(e){ listing=null; list.innerHTML=`<div class="notice err">${esc(e.message)}</div>`; }
+}
+
+function renderCrumbs(){
+  const el=$('#crumbs'); const parts=cur.split('/').filter(Boolean); let acc='';
+  const root = roots.filter(r=>cur===r.path||cur.startsWith(r.path+'/')).sort((a,b)=>b.path.length-a.path.length)[0];
+  let html='', start=0;
+  if (root){ start=root.path.split('/').filter(Boolean).length; acc=root.path; html+=`<button data-p="${esc(root.path)}">📁 ${esc(root.name)}</button>`; }
+  else html+=`<button data-p="/">/</button>`;
+  parts.slice(start).forEach(p=>{ acc+='/'+p; html+=`<span class="sep">›</span><button data-p="${esc(acc)}">${esc(p)}</button>`; });
+  el.innerHTML=html;
+  el.querySelectorAll('button').forEach(b=>b.onclick=()=>openDir(b.dataset.p));
+  $('#upBtn').disabled = !cur || cur==='/' ;
+}
+
+function renderList(){
+  const el=$('#list'); const d=listing; if(!d) return;
+  const rec=$('#recursive').checked;
+  let html='';
+  if (d.truncated) html+='<div class="notice">压缩包太多，只显示了前 5000 个。</div>';
+  html += d.dirs.map(x=>`<div class="row" data-dir="${esc(x.path)}"><span style="width:16px"></span><div class="ico folder">${FOLDER}</div><div class="nm"><b>${esc(x.name)}</b></div><div class="meta"><span class="mt">${fmtTime(x.mtime)}</span></div></div>`).join('');
+  html += d.archives.map(a=>{
+    const [cls,lab]=extIcon(a.name); const sel=selected.has(a.path);
+    const tags = (a.volumes>1?`<span class="tag vol">${a.volumes} 个分卷</span>`:'') + (a.done?'<span class="tag ok">已解压过</span>':'') + (Date.now()/1000-a.mtime<120?'<span class="tag warn">可能还在下载</span>':'');
+    return `<div class="row${sel?' sel':''}" data-a="${esc(a.path)}"><input type="checkbox" ${sel?'checked':''}><div class="ico ${cls}">${lab}</div><div class="nm"><b>${esc(a.name)}${tags}</b>${rec&&a.rel?`<div class="sub">📁 ${esc(a.rel)}</div>`:''}</div><div class="meta">${fmtSize(a.size)}<br><span class="mt">${fmtTime(a.mtime)}</span></div></div>`;
+  }).join('');
+  if (!d.dirs.length && !d.archives.length) html+=`<div class="empty"><div class="big">🗂️</div>${rec?'这里和子文件夹里都没有压缩包':'这个文件夹里没有压缩包'}${d.others?`<div class="small faint">（有 ${d.others} 个其他文件）</div>`:''}</div>`;
+  else if (!d.archives.length) html+=`<div class="empty small">这一层没有压缩包${rec?'':'，可以勾选“包含子文件夹”一次找出所有压缩包'}</div>`;
+  el.innerHTML=html;
+  el.querySelectorAll('[data-dir]').forEach(r=>r.onclick=()=>openDir(r.dataset.dir));
+  el.querySelectorAll('[data-a]').forEach(r=>r.onclick=e=>{
+    const a=d.archives.find(x=>x.path===r.dataset.a);
+    if (selected.has(a.path)) selected.delete(a.path); else selected.set(a.path,a);
+    r.classList.toggle('sel', selected.has(a.path)); r.querySelector('input').checked=selected.has(a.path); updateBar();
+  });
+  updateBar();
+}
+
+function updateBar(){
+  const n=selected.size; $('#actionBar').classList.toggle('hidden', !n);
+  $('#selCount').textContent=`已选 ${n} 个`;
+  let sz=0; selected.forEach(a=>sz+=a.size); $('#selSize').textContent = n?fmtSize(sz):'';
+  const all = listing ? listing.archives.length : 0;
+  $('#selAll').checked = all>0 && n===all; $('#selAll').indeterminate = n>0 && n<all;
+}
+$('#selAll').onchange=e=>{ if(!listing) return; selected.clear(); if(e.target.checked) listing.archives.forEach(a=>selected.set(a.path,a)); renderList(); };
+$('#clearSel').onclick=()=>{ selected.clear(); renderList(); };
+$('#recursive').onchange=()=>openDir(cur);
+$('#refreshBtn').onclick=()=>openDir(cur);
+$('#upBtn').onclick=()=>{ if(cur && cur!=='/') openDir(dirname(cur)); };
+$('#editPathBtn').onclick=()=>{ const on=$('#pathEdit').classList.toggle('hidden'); $('#crumbs').classList.toggle('hidden', !on); $('#pathInput').value=cur; if(!on) $('#pathInput').focus(); };
+$('#pathGo').onclick=()=>{ const p=$('#pathInput').value.trim(); if(p){ $('#pathEdit').classList.add('hidden'); $('#crumbs').classList.remove('hidden'); openDir(p);} };
+$('#pathInput').onkeydown=e=>{ if(e.key==='Enter') $('#pathGo').click(); };
+$('#toggleOpts').onclick=()=>{ const h=$('#optsWrap').classList.toggle('hidden'); $('#toggleOpts').textContent = h?'解压选项 ▾':'解压选项 ▴'; };
+
+$('#startBtn').onclick=async()=>{
+  const opts=getJobOpts(); const extra=$('#oncePw').value.trim();
+  if (extra) opts.passwords=extra.split(/\s+/);
+  if (opts.after==='delete' && !confirm(`解压成功后会删除这 ${selected.size} 个压缩包（含分卷），确定吗？`)) return;
+  try{
+    const r=await api('/api/jobs',{files:[...selected.keys()], opts});
+    toast(`已加入 ${r.count} 个解压任务`); selected.clear(); renderList(); $('#oncePw').value=''; show('jobs');
+  }catch(e){ toast(e.message,true); }
+};
+
+/* ---------------- jobs ---------------- */
+let jobs=[], pollTimer=null;
+const stIcon={queued:'',running:'',ok:'✓',fail:'!',skip:'–',cancel:'×'};
+async function pollJobs(){
+  clearTimeout(pollTimer);
+  try{ jobs = await api('/api/jobs'); renderJobs(); }catch(e){}
+  const active = jobs.some(j=>j.tasks.some(t=>t.status==='queued'||t.status==='running'));
+  const n = jobs.reduce((s,j)=>s+j.tasks.filter(t=>t.status==='queued'||t.status==='running').length,0);
+  $('#jobBadge').textContent=n; $('#jobBadge').classList.toggle('hidden', !n);
+  if (wasActive && !active && view==='files' && cur) openDir(cur);
+  wasActive = active;
+  pollTimer=setTimeout(pollJobs, active||view==='jobs' ? 1200 : 5000);
+}
+let wasActive=false;
+function renderJobs(){
+  if (view!=='jobs') return;
+  const el=$('#jobList');
+  if (!jobs.length){ el.innerHTML='<div class="card empty"><div class="big">📦</div>还没有任务。到“文件”页选中压缩包后点“开始解压”。</div>'; return; }
+  el.innerHTML = jobs.map(j=>{
+    const c={ok:0,fail:0,skip:0}; j.tasks.forEach(t=>{ if(c[t.status]!==undefined) c[t.status]++; });
+    const active=j.tasks.some(t=>t.status==='queued'||t.status==='running');
+    const sum=[c.ok?`<span style="color:var(--ok)">成功 ${c.ok}</span>`:'', c.fail?`<span style="color:var(--bad)">失败 ${c.fail}</span>`:'', c.skip?`跳过 ${c.skip}`:''].filter(Boolean).join(' · ');
+    return `<div class="card job"><div class="jh">${j.auto?'<span class="tag vol" style="margin:0">自动</span>':''}<div class="t">${esc(j.title)}</div><span class="muted small">${sum} · ${fmtTime(j.created)}</span>${active?`<button class="btn sm danger" data-cancel="${j.id}">取消</button>`:''}</div>`
+      + j.tasks.map(t=>`<div class="task"><div class="st ${t.status}">${stIcon[t.status]||''}</div><div class="body"><div class="name" title="${esc(t.path)}">${esc(t.name)} <span class="faint small">${fmtSize(t.size)}</span></div>`
+        + (t.status==='running'?`<div class="bar"><i style="width:${t.progress}%"></i></div>${t.note?`<div class="msg">${esc(t.note)}</div>`:''}`:'')
+        + (t.status==='queued'?'<div class="msg">等待中</div>':'')
+        + (t.result?`<div class="msg">→ <a href="#" data-goto="${esc(t.result)}">${esc(t.result)}</a></div>`:'')
+        + (t.message?`<div class="msg ${t.status==='fail'?'bad':''}">${esc(t.message)}</div>`:'')
+        + `</div>${t.status==='running'?`<div class="pct">${t.progress}%</div>`:''}</div>`).join('') + '</div>';
+  }).join('');
+  el.querySelectorAll('[data-cancel]').forEach(b=>b.onclick=async()=>{ await api(`/api/jobs/${b.dataset.cancel}/cancel`,{}); pollJobs(); });
+  el.querySelectorAll('[data-goto]').forEach(a=>a.onclick=e=>{ e.preventDefault(); show('files'); openDir(dirname(a.dataset.goto)); });
+}
+$('#clearJobs').onclick=async()=>{ await api('/api/jobs/clear',{}); pollJobs(); };
+
+/* ---------------- settings & watch ---------------- */
+let watchDirs=[], getWatchOpts=null, getDefOpts=null;
+async function loadSettings(){
+  const s = await api('/api/settings');
+  defaults = s.defaults;
+  $('#pwBook').value = (s.passwords||[]).join('\n');
+  getDefOpts = optsForm($('#defOpts'), s.defaults);
+  const w=s.watch; $('#wEnabled').checked=w.enabled; $('#wInterval').value=w.intervalMin; $('#wStable').value=w.stableMin;
+  watchDirs=[...(w.dirs||[])]; renderWatchDirs();
+  getWatchOpts = optsForm($('#watchOpts'), w.opts);
+  $('#watchOpts').querySelectorAll('[data-k=skipDone]').forEach(x=>x.closest('label').classList.add('hidden'));
+  $('#wStatus').textContent = s.watchLast ? `上次检查 ${fmtTime(s.watchLast)}：${s.watchMsg}` : (w.enabled?'等待第一次检查':'');
+  $('#about').textContent = `版本 ${s.version} · 7-Zip: ${s.sevenZip}`;
+}
+function renderWatchDirs(){
+  $('#wDirs').innerHTML = watchDirs.length ? watchDirs.map((d,i)=>`<div class="diritem"><code title="${esc(d)}">${esc(d)}</code><button class="btn ghost sm danger" data-i="${i}">移除</button></div>`).join('') : '<div class="muted small">还没有添加</div>';
+  $('#wDirs').querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{ watchDirs.splice(+b.dataset.i,1); renderWatchDirs(); });
+}
+$('#wAdd').onclick=async()=>{ const p=await pickFolder('选择要监控的文件夹'); if(p && !watchDirs.includes(p)){ watchDirs.push(p); renderWatchDirs(); } };
+async function saveWatch(){
+  const opts=getWatchOpts();
+  if (opts.outMode==='dir'&&!opts.outDir) throw new Error('请选择解压到哪个文件夹');
+  if (opts.after==='move'&&!opts.moveTo) throw new Error('请选择压缩包移动到哪个文件夹');
+  await api('/api/settings',{watch:{enabled:$('#wEnabled').checked, dirs:watchDirs, intervalMin:+$('#wInterval').value||10, stableMin:+$('#wStable').value||0, opts}});
+}
+$('#wSave').onclick=async()=>{ try{ await saveWatch(); toast('已保存'); }catch(e){ toast(e.message,true);} };
+$('#wRun').onclick=async()=>{ try{ await saveWatch(); if(!$('#wEnabled').checked){ toast('请先打开右上角的开关',true); return;} await api('/api/watch/run',{}); toast('正在检查…'); setTimeout(()=>{loadSettings(); pollJobs();},2500);}catch(e){ toast(e.message,true);} };
+$('#pwSave').onclick=async()=>{ try{ await api('/api/settings',{passwords:$('#pwBook').value.split('\n')}); toast('密码本已保存'); }catch(e){ toast(e.message,true);} };
+$('#defSave').onclick=async()=>{ try{ defaults=getDefOpts(); await api('/api/settings',{defaults}); getJobOpts=optsForm($('#jobOpts'), defaults); toast('已保存'); }catch(e){ toast(e.message,true);} };
+$('#clearDone').onclick=async()=>{ if(!confirm('清空后，以前解压过的压缩包都会被当成新的。确定吗？')) return; await api('/api/done/clear',{}); toast('已清空'); if(cur) openDir(cur); };
+$('#chgPw').onclick=async()=>{ try{ await api('/api/password',{old:$('#oldPw').value,new:$('#newPw').value}); $('#oldPw').value=$('#newPw').value=''; toast('密码已修改'); }catch(e){ toast(e.message,true);} };
+$('#logout').onclick=async()=>{ try{ await api('/api/logout',{}); }catch(e){} setToken(''); location.reload(); };
+
+/* ---------------- boot ---------------- */
+async function boot(){
+  const st = await api('/api/state');
+  if (st.needSetup){ showLogin(true); return; }
+  if (!st.loggedIn){ showLogin(false); return; }
+  await loadRoots();
+  const s = await api('/api/settings'); defaults=s.defaults;
+  getJobOpts = optsForm($('#jobOpts'), defaults);
+  const q = new URLSearchParams(location.search);
+  const file = q.get('path'), dir = q.get('dir');
+  if (file) openDir(dirname(file), file).then(()=>{ if(selected.size){ $('#optsWrap').classList.remove('hidden'); $('#toggleOpts').textContent='解压选项 ▴'; } });
+  else if (dir) openDir(dir);
+  else if (roots.length) openDir(roots[0].path);
+  else { renderCrumbs(); $('#list').innerHTML='<div class="empty"><div class="big">🔐</div>还没有授权任何文件夹给本应用。<br><br>请到飞牛 <b>设置 → 应用设置 → 批量解压</b>，添加你的下载文件夹等目录并给“读写”权限，然后刷新本页。<br><br><span class="small">也可以点上方“✎ 路径”直接输入路径。</span></div>'; }
+  pollJobs();
+}
+boot().catch(e=>toast(e.message,true));
+</script>
+</body>
+</html>

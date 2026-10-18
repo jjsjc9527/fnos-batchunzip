@@ -1,0 +1,4 @@
+#!/bin/bash
+# The fnOS CGI gateway can only run ui/index.cgi if it is executable.
+chmod 0755 "${TRIM_APPDEST}/ui/index.cgi" "${TRIM_APPDEST}/bin/batch-unzip" "${TRIM_APPDEST}/bin/7zz" 2>/dev/null
+exit 0

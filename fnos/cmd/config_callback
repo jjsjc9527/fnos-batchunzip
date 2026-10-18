@@ -1,0 +1,8 @@
+#!/bin/bash
+# Authorized folders changed in 应用设置: let the running app see the new list.
+if [ -n "${TRIM_PKGVAR}" ]; then
+    mkdir -p "${TRIM_PKGVAR}"
+    printf '%s' "${TRIM_DATA_ACCESSIBLE_PATHS}" > "${TRIM_PKGVAR}/accessible_paths"
+    printf '%s' "${TRIM_DATA_SHARE_PATHS}" > "${TRIM_PKGVAR}/share_paths"
+fi
+exit 0

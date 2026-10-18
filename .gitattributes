@@ -1,0 +1,5 @@
+# fnOS runs these on Linux: keep LF line endings even when checked out on Windows
+* text=auto eol=lf
+*.PNG binary
+*.png binary
+*.fpk binary

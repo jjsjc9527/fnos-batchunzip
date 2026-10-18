@@ -1,0 +1,14 @@
+appname         = batchunzip
+version         = 1.0.2
+display_name    = 批量解压
+platform        = x86
+maintainer      = batchunzip
+distributor     = batchunzip
+desktop_uidir   = ui
+desktop_applaunchname = batchunzip.Application
+service_port    = 18660
+checkport       = true
+desc            = 网页版批量解压工具。支持 zip / rar / 7z / tar.gz 等格式和分卷压缩包，可勾选多个一起解压，自动修复中文文件名乱码，支持密码本、解压后删除或移走压缩包，还能定时监控下载文件夹自动解压。<br>使用前请在「应用设置」里给本应用授权需要处理的文件夹（读写权限）。
+source          = thirdparty
+changelog       = 1.0.2：去掉桌面上的「批量解压（局域网直连）」备用图标，只保留一个入口（局域网仍可直接访问 http://NAS地址:18660）。1.0.1：修复手机飞牛 App / 远程访问时打不开（连接超时）的问题。桌面图标改为通过飞牛自身端口的同源网关打开，局域网、远程、手机都能用，并在飞牛窗口内打开。
+checksum        = 
